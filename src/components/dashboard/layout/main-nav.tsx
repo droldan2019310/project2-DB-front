@@ -7,7 +7,6 @@ import { PuzzlePiece } from '@phosphor-icons/react';
 import { usePopover } from '@/hooks/use-popover';
 
 import { MobileNav } from './mobile-nav';
-import { UserPopover } from './user-popover';
 import { Typography } from '@mui/material';
 
 export function MainNav(): React.JSX.Element {
@@ -38,7 +37,6 @@ export function MainNav(): React.JSX.Element {
           </Stack>
         </Stack>
       </Box>
-      <UserPopover anchorEl={userPopover.anchorRef.current} onClose={userPopover.handleClose} open={userPopover.open} />
       <MobileNav
         onClose={() => {
           setOpenNav(false);
