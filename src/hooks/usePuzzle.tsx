@@ -4,6 +4,7 @@ import axiosInstance from './axiosInstance'; // ajusta la ruta según tu proyect
 type Connection = {
   piece_id: number;
   edge_id: number;
+  from_piece_id: number;
 };
 
 type Component = {
@@ -121,3 +122,53 @@ export function usePiecesDetailsFromSolution(solution: Solution | null) {
 
   return { piecesMap, loading, error };
 }
+
+
+
+export const useCreatePuzzle = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const createPuzzle = async (puzzle: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axiosInstance.post('/api/puzzle', puzzle);
+      return response.data;
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error creating puzzle');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { createPuzzle, loading, error };
+};
+
+interface Piece {
+  puzzle_name: string;
+  piece_id: number;
+  edges: string[];
+}
+
+export const useAddPiece = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const addPiece = async (piece: Piece) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axiosInstance.post('/api/piece', piece);
+      return response.data;
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error adding piece');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { addPiece, loading, error };
+};

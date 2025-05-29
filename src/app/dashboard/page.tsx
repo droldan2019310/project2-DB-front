@@ -12,8 +12,16 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+} from '@mui/material';
 
-import { usePuzzlesList, usePuzzleSolution, usePiecesDetailsFromSolution } from '../../hooks/usePuzzle';
+
+import { usePuzzlesList, usePuzzleSolution, usePiecesDetailsFromSolution, useCreatePuzzle, useAddPiece } from '../../hooks/usePuzzle';
 
 type Position = { x: number; y: number };
 
@@ -40,11 +48,6 @@ type Piece = {
 };
 
 function PieceVisual({ edges, style }: { edges: number[]; style?: React.CSSProperties }) {
-  const top = edges[0];
-  const right = edges[1];
-  const bottom = edges[2];
-  const left = edges[3];
-
   return (
     <Box
       style={style}
@@ -57,86 +60,69 @@ function PieceVisual({ edges, style }: { edges: number[]; style?: React.CSSPrope
         userSelect: 'none',
         backgroundColor: '#fff',
         boxShadow: 3,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: '14px',
       }}
     >
-      {top !== undefined && (
-        <Typography
-          sx={{
-            position: 'absolute',
-            top: -20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontWeight: 'bold',
-          }}
-        >
-          {top}
-        </Typography>
-      )}
-      {right !== undefined && (
-        <Typography
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            right: -30,
-            transform: 'translateY(-50%)',
-            fontWeight: 'bold',
-          }}
-        >
-          {right}
-        </Typography>
-      )}
-      {bottom !== undefined && (
-        <Typography
-          sx={{
-            position: 'absolute',
-            bottom: -20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontWeight: 'bold',
-          }}
-        >
-          {bottom}
-        </Typography>
-      )}
-      {left !== undefined && (
-        <Typography
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: -30,
-            transform: 'translateY(-50%)',
-            fontWeight: 'bold',
-          }}
-        >
-          {left}
-        </Typography>
-      )}
-
       <Box
         sx={{
           width: 80,
           height: 80,
           backgroundColor: '#ddd',
-          margin: 'auto',
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
           borderRadius: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 1,
         }}
-      />
+      >
+        <Typography>{edges.join('\n')}</Typography>
+      </Box>
     </Box>
   );
 }
 
 export default function Page() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newPuzzleName, setNewPuzzleName] = useState('');
+  const [totalPieces, setTotalPieces] = useState(1);
+  const [pieces, setPieces] = useState<{ piece_id: number; edges: any }[]>([
+    { piece_id: 1, edges: [] },
+  ]);
+
+  const { createPuzzle } = useCreatePuzzle();
+  const { addPiece } = useAddPiece();
+
   const { puzzles, loading: loadingPuzzles, error: errorPuzzles } = usePuzzlesList();
   const [selectedPuzzle, setSelectedPuzzle] = useState<string>('');
   const { solution, loading: loadingSolution, error: errorSolution } = usePuzzleSolution(selectedPuzzle);
   const { piecesMap, loading: loadingPiecesMap, error: errorPiecesMap } = usePiecesDetailsFromSolution(solution);
 
   const [positions, setPositions] = useState<Record<number, Position>>({});
+
+
+  const handleSavePuzzle = async () => {
+    const puzzleResponse = await createPuzzle({ name: newPuzzleName, total_pieces: totalPieces });
+
+      if (puzzleResponse) {
+        for (const piece of pieces) {
+          await addPiece({
+            puzzle_name: newPuzzleName,
+            piece_id: piece.piece_id,
+            edges: piece.edges,
+          });
+        }
+        setDialogOpen(false);
+        setNewPuzzleName('');
+        setPieces([{ piece_id: 1, edges: [] }]);
+        setTotalPieces(1);
+      }
+  };
 
   useEffect(() => {
     if (!solution || !solution.components.length) {
@@ -148,51 +134,50 @@ export default function Page() {
     const visited = new Set<number>();
     const queue: Array<{ pieceId: number; x: number; y: number }> = [];
 
-    const connMap: Record<number, Array<{ piece_id: number; edge_id: number }>> = {};
+    const directionOffsets = {
+      up: { x: 0, y: -1 },
+      right: { x: 1, y: 0 },
+      down: { x: 0, y: 1 },
+      left: { x: -1, y: 0 },
+    };
 
-    solution.components.forEach(component => {
-      if (!connMap[component.start_piece]) connMap[component.start_piece] = [];
-      component.connections.forEach(conn => {
-        connMap[component.start_piece].push(conn);
-        if (!connMap[conn.piece_id]) connMap[conn.piece_id] = [];
-        connMap[conn.piece_id].push({ piece_id: component.start_piece, edge_id: conn.edge_id });
-      });
-    });
+  
+
+
+    const edgeToDirection: Record<number, keyof typeof directionOffsets> = {
+      501: 'up',
+      502: 'right',
+      503: 'left',
+      504: 'down',
+      505: 'right',
+      506: 'left',
+      507: 'down',
+    };
 
     for (const component of solution.components) {
-      if (!visited.has(component.start_piece)) {
-        queue.push({ pieceId: component.start_piece, x: 0, y: 0 });
-        posMap[component.start_piece] = { x: 0, y: 0 };
-        visited.add(component.start_piece);
-        console.log(`Inicio BFS en pieza ${component.start_piece} con posición (0,0)`);
+      const start = component.start_piece;
+      if (!visited.has(start)) {
+        posMap[start] = { x: 0, y: 0 };
+        visited.add(start);
+        queue.push({ pieceId: start, x: 0, y: 0 });
 
         while (queue.length > 0) {
           const { pieceId, x, y } = queue.shift()!;
-          console.log(`Visitando pieza ${pieceId} en posición (${x},${y})`);
+          const currentConns = component.connections.filter(c => c.from_piece_id === pieceId);
 
-          const neighbors = connMap[pieceId] || [];
-          for (const neighbor of neighbors) {
-            if (visited.has(neighbor.piece_id)) {
-              console.log(`  Pieza ${neighbor.piece_id} ya visitada`);
-              continue;
+          for (const conn of currentConns) {
+            const dir = edgeToDirection[conn.edge_id];
+            if (!dir) continue;
+
+            const offset = directionOffsets[dir];
+            const nx = x + offset.x;
+            const ny = y + offset.y;
+
+            if (!visited.has(conn.piece_id)) {
+              posMap[conn.piece_id] = { x: nx, y: ny };
+              visited.add(conn.piece_id);
+              queue.push({ pieceId: conn.piece_id, x: nx, y: ny });
             }
-
-            const direction = EDGE_TO_DIRECTION[neighbor.edge_id];
-            if (!direction) {
-              console.log(`  Edge ${neighbor.edge_id} no tiene dirección asignada`);
-              continue;
-            }
-
-            const offset = DIRECTION_OFFSETS[direction];
-            const newX = x + offset.x;
-            const newY = y + offset.y;
-
-            // Asignamos posición sin desplazar aunque esté ocupada
-            posMap[neighbor.piece_id] = { x: newX, y: newY };
-            visited.add(neighbor.piece_id);
-            queue.push({ pieceId: neighbor.piece_id, x: newX, y: newY });
-
-            console.log(`  Agregando pieza ${neighbor.piece_id} en posición (${newX},${newY}) por conexión con edge ${neighbor.edge_id} en dirección ${direction}`);
           }
         }
       }
@@ -200,6 +185,7 @@ export default function Page() {
 
     setPositions(posMap);
   }, [solution]);
+
 
 
 
@@ -226,6 +212,61 @@ export default function Page() {
       <Typography variant="h4" gutterBottom>
         Puzzle Solver
       </Typography>
+
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Crear nuevo Puzzle</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Nombre del Puzzle"
+            margin="normal"
+            value={newPuzzleName}
+            onChange={(e) => setNewPuzzleName(e.target.value)}
+          />
+          <TextField
+            fullWidth
+            label="Total de piezas"
+            type="number"
+            margin="normal"
+            value={totalPieces}
+            onChange={(e) => {
+              const value = parseInt(e.target.value);
+              setTotalPieces(value);
+              setPieces(Array.from({ length: value }, (_, i) => pieces[i] || { piece_id: i + 1, edges: [] }));
+            }}
+          />
+          {pieces.map((piece, index) => (
+            <TextField
+            key={index}
+            fullWidth
+            margin="normal"
+            label={`Edges de la pieza ${piece.piece_id} (separados por coma)`}
+            value={piece.edges}
+            onChange={(e) => {
+              const newPieces = [...pieces];
+              newPieces[index].edges = e.target.value;
+              setPieces(newPieces);
+            }}
+          />
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleSavePuzzle} variant="contained" color="primary">
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => setDialogOpen(true)}
+      >
+        Crear nuevo Puzzle
+      </Button>
+
 
       <FormControl fullWidth margin="normal" disabled={loadingPuzzles || Boolean(errorPuzzles)}>
         <InputLabel id="puzzle-select-label">Selecciona un Puzzle</InputLabel>
@@ -293,6 +334,8 @@ export default function Page() {
           </>
         )}
       </Box>
+
+
     </Box>
   );
 }
