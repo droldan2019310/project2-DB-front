@@ -144,15 +144,20 @@ export default function Page() {
   
 
 
-    const edgeToDirection: Record<number, keyof typeof directionOffsets> = {
-      501: 'up',
-      502: 'right',
-      503: 'left',
-      504: 'down',
-      505: 'right',
-      506: 'left',
-      507: 'down',
-    };
+  const edgeToDirection: Record<number, keyof typeof directionOffsets> = {
+    1: 'right',
+    2: 'right',
+    3: 'right',
+    4: 'down',
+    5: 'left',
+    6: 'left',
+    7: 'down',
+    8: 'right',
+    9: 'left',
+    10: 'down',
+    11: 'right',
+    12: 'down',
+  };
 
     for (const component of solution.components) {
       const start = component.start_piece;
@@ -184,6 +189,9 @@ export default function Page() {
     }
 
     setPositions(posMap);
+
+      console.log('Piezas posicionadas:', posMap);
+
   }, [solution]);
 
 
@@ -299,23 +307,21 @@ export default function Page() {
       >
         {solution && !loadingPiecesMap && Object.keys(positions).length > 0 && (
           <>
-            {solution.components.flatMap((component) =>
-              component.connections.map((conn) => {
-                const edges = piecesMap[conn.piece_id] || [];
-                const pos = positions[conn.piece_id];
-                if (!pos) return null;
-                return (
-                  <PieceVisual
-                    key={conn.piece_id}
-                    edges={edges}
-                    style={{
-                      top: offsetY + pos.y * TILE_SIZE,
-                      left: offsetX + pos.x * TILE_SIZE,
-                    }}
-                  />
-                );
-              })
-            )}
+            {Object.entries(positions).map(([pieceIdStr, pos]) => {
+  const pieceId = parseInt(pieceIdStr, 10);
+  const edges = piecesMap[pieceId] || [];
+  return (
+    <PieceVisual
+      key={pieceId}
+      edges={edges}
+      style={{
+        top: offsetY + pos.y * TILE_SIZE,
+        left: offsetX + pos.x * TILE_SIZE,
+      }}
+    />
+  );
+})}
+
             {/* Render pieza inicial */}
             {solution.components.map((component) => {
               const startPos = positions[component.start_piece];
@@ -331,11 +337,35 @@ export default function Page() {
                 />
               );
             })}
+
+
+       
+
           </>
         )}
       </Box>
 
+             {solution && piecesMap && (
+              <Box mt={4}>
+                <Typography variant="h6" gutterBottom>
+                  JSON de Solución
+                </Typography>
+                <Paper sx={{ padding: 2, maxHeight: 300, overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
+                  <pre style={{ fontSize: 12 }}>
+                    {JSON.stringify(solution, null, 2)}
+                  </pre>
+                </Paper>
 
+                <Typography variant="h6" gutterBottom sx={{ marginTop: 2 }}>
+                  JSON de piezas
+                </Typography>
+                <Paper sx={{ padding: 2, maxHeight: 300, overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
+                  <pre style={{ fontSize: 12 }}>
+                    {JSON.stringify(piecesMap, null, 2)}
+                  </pre>
+                </Paper>
+              </Box>
+            )}
     </Box>
   );
 }

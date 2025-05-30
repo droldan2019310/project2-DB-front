@@ -156,11 +156,20 @@ export const useAddPiece = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const addPiece = async (piece: Piece) => {
+  const addPiece = async (piece: Piece & { edges: string }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axiosInstance.post('/api/piece', piece);
+      const edgeArray = piece.edges
+        .split(',')
+        .map((val) => parseInt(val.trim()))
+        .filter((num) => !isNaN(num));
+
+      const response = await axiosInstance.post('/api/piece', {
+        ...piece,
+        edges: edgeArray,
+      });
+
       return response.data;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error adding piece');
